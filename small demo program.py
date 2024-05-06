@@ -1,35 +1,40 @@
 import openai
+import fitz
+import os
+import pandas as pd
+from dotenv import load_dotenv
 
-# Set up your OpenAI API key
-openai.api_key = 'sk-proj-VEddPZgz6J34XiUD6hHjT3BlbkFJFgjtDNbOgipEJ851onI5'
+filepath = "./2020.acl-demos.30.pdf"
+# Load API key from .env file
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def summarize_article(article_text, max_tokens=100):
-    # Define the prompt
-    prompt = "Summarize the following news article:\n\n" + article_text + "\n\nSummary:"
-
-    # Generate the summary using GPT
-    response = openai.Completion.create(
-      engine="text-davinci-003",
-      prompt=prompt,
-      max_tokens=max_tokens
+def get_completion(prompt, model="gpt-3.5-turbo"):
+    messages = [{"role": "user", "content": prompt}]
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=messages,
+        temperature=0, # this is the degree of randomness of the model's output
     )
+    return response.choices[0].message["content"]
 
-    # Extract the summary from the response
-    summary = response.choices[0].text.strip()
 
-    return summary
+# Read the entire PDF document
+text = ''
+with fitz.open(filepath) as pdf_file:
+    for page_num in range(len(pdf_file)):
+        page = pdf_file.load_page(page_num)
+        text += page.get_text()
 
-def main():
-    # Example news article text
-    article_text = """
-    Insert your news article here.
-    """
+# Generate a summary
+prompt = f"""
+Your task is to summarize the following text into a 500-word summary:
 
-    # Summarize the article
-    summary = summarize_article(article_text)
+{text}
+"""
+summary = get_completion(prompt)
 
-    # Print the summary
-    print("Summary:", summary)
-
-if __name__ == "__main__":
+# Write the summary to a text file
+with open('summary.txt', 'w') as out:
+    out.write(summary)
     main()
